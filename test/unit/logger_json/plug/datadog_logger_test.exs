@@ -1,5 +1,5 @@
 # The use Plug.Builder in another nested module is causing this check to fail.
-# credo:disable-for-this-file Credo.Check.Consistency.MultiAliasImportRequireUseg
+# credo:disable-for-this-file Credo.Check.Consistency.MultiAliasImportRequireUse
 defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
   use Logger.Case, async: false
   use Plug.Test
@@ -63,6 +63,30 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
            } = Jason.decode!(log)
   end
 
+  test "scrubs sensitive request headers" do
+    conn =
+      :post
+      |> conn("/hello/world", [])
+      |> put_req_header("authorization", "Bearer TESTING")
+      |> put_req_header("cookie", "iwannacookie")
+
+    log =
+      capture_io(:standard_error, fn ->
+        MyPlug.call(conn, [])
+        Logger.flush()
+        Process.sleep(10)
+      end)
+
+    assert %{
+             "http" => %{
+               "request_headers" => %{
+                 "authorization" => "*********",
+                 "cookie" => "*********"
+               }
+             }
+           } = Jason.decode!(log)
+  end
+
   test "logs request body" do
     conn =
       :post
@@ -80,6 +104,32 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
              "http" => %{
                "request_params" => %{
                  "hello" => "world"
+               }
+             }
+           } = Jason.decode!(log)
+  end
+
+  test "scrubs nested request body keys" do
+    conn =
+      :post
+      |> conn("/hello/world", Jason.encode!(%{test: %{key: %{password: "sensitive"}}}))
+      |> put_req_header("content-type", "application/json")
+
+    log =
+      capture_io(:standard_error, fn ->
+        MyPlug.call(conn, [])
+        Logger.flush()
+        Process.sleep(10)
+      end)
+
+    assert %{
+             "http" => %{
+               "request_params" => %{
+                 "test" => %{
+                   "key" => %{
+                     "password" => "*********"
+                   }
+                 }
                }
              }
            } = Jason.decode!(log)

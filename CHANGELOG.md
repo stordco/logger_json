@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.4](https://github.com/stordco/logger_json/compare/v1.0.3...v1.0.4) (2023-10-04)
+
+
+### Bug Fixes
+
+* Scrub cloud signature ([#10](https://github.com/stordco/logger_json/issues/10)) ([dbc00a9](https://github.com/stordco/logger_json/commit/dbc00a92111f95f0c8069eb00f15d3c97e40860b))
+
+
+### Miscellaneous
+
+* Sync files with stordco/common-config-elixir ([#7](https://github.com/stordco/logger_json/issues/7)) ([684b592](https://github.com/stordco/logger_json/commit/684b592f189f4ac75cf70c5874a20b36b27037a0))
+
 ## [1.0.3](https://github.com/stordco/logger_json/compare/v1.0.2...v1.0.3) (2023-08-08)
 
 

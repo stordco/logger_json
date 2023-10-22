@@ -139,7 +139,47 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
     end
   end
 
-  describe "specifying scrub_overrides configuration" do
+  describe "configuration: :scrubbed_value" do
+    setup do
+      :ok =
+        Logger.configure_backend(
+          LoggerJSON,
+          device: :standard_error,
+          level: nil,
+          metadata: :all,
+          json_encoder: Jason,
+          on_init: :disabled,
+          formatter: LoggerJSON.Formatters.DatadogLogger,
+          formatter_state: %{}
+        )
+
+      override_application_env(:logger_json, :scrubbed_value, "##########")
+    end
+
+    test "replaces the default scrubbed_value with a provided one" do
+      conn =
+        :post
+        |> conn("/hello/world", [])
+        |> put_req_header("authorization", "Bearer VERY-LEAKABLE-API-KEY")
+
+      log =
+        capture_io(:standard_error, fn ->
+          MyPlug.call(conn, [])
+          Logger.flush()
+          Process.sleep(10)
+        end)
+
+      assert %{
+               "http" => %{
+                 "request_headers" => %{
+                   "authorization" => "##########"
+                 }
+               }
+             } = Jason.decode!(log)
+    end
+  end
+
+  describe "configuration: :scrub_overrides" do
     setup do
       :ok =
         Logger.configure_backend(

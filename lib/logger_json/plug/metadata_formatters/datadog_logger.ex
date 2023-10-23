@@ -24,6 +24,8 @@ if Code.ensure_loaded?(Plug) do
 
     @doc false
     def build_metadata(conn, latency, client_version_header) do
+      scrub_map = scrub_map(scrub_overrides())
+
       client_metadata(conn, client_version_header) ++
         phoenix_metadata(conn) ++
         [
@@ -34,9 +36,9 @@ if Code.ensure_loaded?(Plug) do
               status_code: conn.status,
               method: conn.method,
               referer: LoggerJSON.PlugUtils.get_header(conn, "referer"),
-              request_headers: recursive_scrub(conn.req_headers),
               request_id: Keyword.get(Logger.metadata(), :request_id),
-              request_params: recursive_scrub(conn.params),
+              request_headers: recursive_scrub(conn.req_headers, scrub_map),
+              request_params: recursive_scrub(conn.params, scrub_map),
               useragent: LoggerJSON.PlugUtils.get_header(conn, "user-agent"),
               url_details:
                 json_map(
@@ -51,13 +53,8 @@ if Code.ensure_loaded?(Plug) do
         ]
     end
 
-    defp native_to_nanoseconds(nil) do
-      nil
-    end
-
-    defp native_to_nanoseconds(native) do
-      System.convert_time_unit(native, :native, :nanosecond)
-    end
+    defp native_to_nanoseconds(nil), do: nil
+    defp native_to_nanoseconds(native), do: System.convert_time_unit(native, :native, :nanosecond)
 
     defp request_url(%{request_path: "/"} = conn), do: "#{conn.scheme}://#{conn.host}/"
     defp request_url(conn), do: "#{conn.scheme}://#{Path.join(conn.host, conn.request_path)}"
@@ -74,9 +71,7 @@ if Code.ensure_loaded?(Plug) do
       [phoenix: json_map(controller: controller, action: action, route: phoenix_route(conn))]
     end
 
-    defp phoenix_metadata(_conn) do
-      []
-    end
+    defp phoenix_metadata(_conn), do: []
 
     if Code.ensure_loaded?(Phoenix.Router) do
       defp phoenix_route(%{private: %{phoenix_router: router}, method: method, request_path: path, host: host}) do
@@ -89,31 +84,52 @@ if Code.ensure_loaded?(Plug) do
 
     defp phoenix_route(_conn), do: nil
 
-    defp recursive_scrub(%{__struct__: Plug.Conn.Unfetched}),
-      do: "%Plug.Conn.Unfetched{}"
+    defp scrub_overrides, do: Application.get_env(:logger_json, :scrub_overrides, %{})
+    defp default_scrub_value, do: Application.get_env(:logger_json, :scrubbed_value, @scrubbed_value)
 
-    defp recursive_scrub([head | _tail] = data) when is_tuple(head),
-      do: data |> Enum.map(&recursive_scrub/1) |> Map.new()
-
-    defp recursive_scrub(data) when is_list(data) and length(data) > 100,
-      do: "List of #{length(data)} items"
-
-    defp recursive_scrub(data) when is_list(data),
-      do: Enum.map(data, &recursive_scrub/1)
-
-    defp recursive_scrub(data) when is_struct(data),
-      do: data |> Map.from_struct() |> recursive_scrub()
-
-    defp recursive_scrub({k, _v}) when k in @scrubbed_keys,
-      do: {k, @scrubbed_value}
-
-    defp recursive_scrub(data) when is_map(data) do
-      Map.new(data, fn
-        {k, _v} when k in @scrubbed_keys -> {k, @scrubbed_value}
-        {k, v} -> {k, recursive_scrub(v)}
+    defp scrub_map(overrides) do
+      Enum.reduce(@scrubbed_keys, overrides, fn key, acc ->
+        Map.put_new(acc, key, default_scrub_value())
       end)
     end
 
-    defp recursive_scrub(data), do: data
+    defp scrubbed_value(key, actual_value, scrub_map) do
+      case Map.get(scrub_map, key) do
+        {mod, func, args} when is_atom(mod) and is_atom(func) and is_list(args) ->
+          {:replace, apply(mod, func, [actual_value | args])}
+
+        static_value when is_binary(static_value) ->
+          {:replace, static_value}
+
+        _ ->
+          {:keep, actual_value}
+      end
+    end
+
+    defp recursive_scrub(%{__struct__: Plug.Conn.Unfetched}, _scrub_map), do: "%Plug.Conn.Unfetched{}"
+
+    defp recursive_scrub([head | _tail] = data, scrub_map) when is_tuple(head),
+      do: data |> Enum.map(&recursive_scrub(&1, scrub_map)) |> Map.new()
+
+    defp recursive_scrub(data, scrub_map) when is_list(data),
+      do: Enum.map(data, &recursive_scrub(&1, scrub_map))
+
+    defp recursive_scrub(data, scrub_map) when is_map(data) do
+      Map.new(data, fn {k, v} ->
+        case scrubbed_value(k, v, scrub_map) do
+          {:replace, new_value} -> {k, new_value}
+          {:keep, _} -> {k, recursive_scrub(v, scrub_map)}
+        end
+      end)
+    end
+
+    defp recursive_scrub({k, v}, scrub_map) do
+      case scrubbed_value(k, v, scrub_map) do
+        {:replace, new_value} -> {k, new_value}
+        {:keep, _} -> {k, recursive_scrub(v, scrub_map)}
+      end
+    end
+
+    defp recursive_scrub(data, _), do: data
   end
 end

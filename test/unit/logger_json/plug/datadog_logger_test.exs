@@ -180,6 +180,12 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
   end
 
   describe "configuration: :scrub_overrides" do
+    defmodule ScrubHelpers do
+      def reverse(value) do
+        String.reverse(value)
+      end
+    end
+
     setup do
       :ok =
         Logger.configure_backend(
@@ -195,7 +201,7 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
 
       override_application_env(:logger_json, :scrub_overrides, %{
         "some-unicorn-key-super-special-lul" => "$$$$",
-        "use-a-callback" => fn value -> String.reverse(value) end
+        "use-a-callback" => {ScrubHelpers, :reverse, []}
       })
     end
 

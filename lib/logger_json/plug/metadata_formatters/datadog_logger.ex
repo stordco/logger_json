@@ -93,11 +93,16 @@ if Code.ensure_loaded?(Plug) do
       end)
     end
 
-    defp scrubbed_value(key, scrub_map) do
-      if Map.has_key?(scrub_map, key) do
-        Map.get(scrub_map, key, default_scrub_value())
-      else
-        nil
+    defp scrubbed_value(key, actual_value, scrub_map) do
+      case Map.get(scrub_map, key) do
+        {mod, func, args} when is_atom(mod) and is_atom(func) and is_list(args) ->
+          {:replace, apply(mod, func, [actual_value | args])}
+
+        static_value when is_binary(static_value) ->
+          {:replace, static_value}
+
+        _ ->
+          {:keep, actual_value}
       end
     end
 
@@ -111,23 +116,17 @@ if Code.ensure_loaded?(Plug) do
 
     defp recursive_scrub(data, scrub_map) when is_map(data) do
       Map.new(data, fn {k, v} ->
-        scrub_value = scrubbed_value(k, scrub_map)
-
-        if scrub_value do
-          {k, scrub_value}
-        else
-          {k, recursive_scrub(v, scrub_map)}
+        case scrubbed_value(k, v, scrub_map) do
+          {:replace, new_value} -> {k, new_value}
+          {:keep, _} -> {k, recursive_scrub(v, scrub_map)}
         end
       end)
     end
 
     defp recursive_scrub({k, v}, scrub_map) do
-      scrub_value = scrubbed_value(k, scrub_map)
-
-      if is_function(scrub_value) do
-        {k, scrub_value.(v)}
-      else
-        {k, scrub_value || recursive_scrub(v, scrub_map)}
+      case scrubbed_value(k, v, scrub_map) do
+        {:replace, new_value} -> {k, new_value}
+        {:keep, _} -> {k, recursive_scrub(v, scrub_map)}
       end
     end
 

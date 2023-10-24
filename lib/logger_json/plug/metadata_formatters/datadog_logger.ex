@@ -98,13 +98,14 @@ if Code.ensure_loaded?(Plug) do
     end
 
     @doc """
-        Scrubs the private part of the authorization header while keeping the public part for additional observability possibilities.
+    Scrubs the private part of the authorization header while keeping the public part for additional observability possibilities.
 
-        ## Notes:
-        - Secret/App key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
-        - This is internally referred to as the `secret_key_header`. The public part of the key is retained in the output for name recognition and less ambiguity.
-        - The expected outcome would be something like "stord_sk_publickeyasdfasdf_*******", assuming "*******" is the scrub value.
-        - You can use DataDog's regex to extract the public key part and turn it into a standard attribute.
+    ## Notes:
+
+    - Secret/App key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
+    - This is internally referred to as the `secret_key_header`. The public part of the key is retained in the output for name recognition and less ambiguity.
+    - The expected outcome would be something like "stord_sk_publickeyasdfasdf_*******", assuming "*******" is the scrub value.
+    - You can use DataDog's regex to extract the public key part and turn it into a standard attribute.
     """
     def extract_public_key(value, scrub_value) do
       case Regex.named_captures(

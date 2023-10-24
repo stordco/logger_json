@@ -98,16 +98,24 @@ if Code.ensure_loaded?(Plug) do
     end
 
     @doc """
-    Extracts the public part from the authorization header and returns it as the scrubbed value for additional observability.
+        Scrubs the private part of the authorization header while keeping the public part for additional observability possibilities.
 
-    ## Notes:
-    - Secret/App key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
-    - This is internally referred to as the `secret_key_header`, but calling it a public_key for name recognition and to be less scary.
+        ## Notes:
+        - Secret/App key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
+        - This is internally referred to as the `secret_key_header`. The public part of the key is retained in the output for name recognition and less ambiguity.
+        - The expected outcome would be something like "stord_sk_publickeyasdfasdf_*******", assuming "*******" is the scrub value.
+        - You can use DataDog's regex to extract the public key part and turn it into a standard attribute.
     """
-    def extract_public_key(value, default_value) do
-      case Regex.named_captures(~r/Bearer stord_(sk|ak)_(?<public_key>[A-Za-z0-9+\/]+)_.+/, value) do
-        %{"public_key" => public_key} -> public_key
-        _ -> default_value
+    def extract_public_key(value, scrub_value) do
+      case Regex.named_captures(
+             ~r/Bearer stord_(?<type>sk|ak)_(?<public_key>[A-Za-z0-9+\/]+)_(?<secret_key>.+)/,
+             value
+           ) do
+        %{"public_key" => public_key, "secret_key" => _, "type" => type} ->
+          "stord_#{type}_#{public_key}_#{scrub_value}"
+
+        _ ->
+          scrub_value
       end
     end
 

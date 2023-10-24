@@ -91,12 +91,14 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
     end
 
     test "scrubs a cloud-service authorization header with secret key, extracts the secret_key_header and returns it as the scrub value" do
+      secret_key = "somesecretkeyvaluel0l"
       secret_key_header = "S9qb802LOup/zg3cd4m+CDsR"
+      key_type = "stord_sk"
 
       conn =
         :post
         |> conn("/hello/world", [])
-        |> put_req_header("authorization", "Bearer stord_sk_#{secret_key_header}_somesecretkeyvaluel0l")
+        |> put_req_header("authorization", "Bearer #{key_type}_#{secret_key_header}_#{secret_key}")
 
       log =
         capture_io(:standard_error, fn ->
@@ -105,22 +107,26 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
           Process.sleep(10)
         end)
 
+      expected_scrubbed_value = "#{key_type}_#{secret_key_header}_*********"
+
       assert %{
                "http" => %{
                  "request_headers" => %{
-                   "authorization" => ^secret_key_header
+                   "authorization" => ^expected_scrubbed_value
                  }
                }
              } = Jason.decode!(log)
     end
 
     test "scrubs a cloud-service authorization header with app key, extracts the secret_key_header and returns it as the scrub value" do
+      secret_key = "somesecretkeyvaluel0l"
       secret_key_header = "S9qb802LOup/zg3cd4m+CDsR"
+      key_type = "stord_ak"
 
       conn =
         :post
         |> conn("/hello/world", [])
-        |> put_req_header("authorization", "Bearer stord_ak_#{secret_key_header}_somesecretkeyvaluel0l")
+        |> put_req_header("authorization", "Bearer #{key_type}_#{secret_key_header}_#{secret_key}")
 
       log =
         capture_io(:standard_error, fn ->
@@ -129,10 +135,12 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
           Process.sleep(10)
         end)
 
+      expected_scrubbed_value = "#{key_type}_#{secret_key_header}_*********"
+
       assert %{
                "http" => %{
                  "request_headers" => %{
-                   "authorization" => ^secret_key_header
+                   "authorization" => ^expected_scrubbed_value
                  }
                }
              } = Jason.decode!(log)

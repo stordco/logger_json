@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/stordco/logger_json/compare/v1.0.4...v1.1.0) (2023-10-24)
+
+
+### Features
+
+* Default authorization header callback to support stord api keys ([#13](https://github.com/stordco/logger_json/issues/13)) ([43b29c7](https://github.com/stordco/logger_json/commit/43b29c7c5460821c7c7c0ecff597a989430a9773))
+* Support additional scrubbing configuration and callbacks ([#11](https://github.com/stordco/logger_json/issues/11)) ([7a9ba85](https://github.com/stordco/logger_json/commit/7a9ba85732c28a8a5b9e936f4cf56767eeeb495f))
+
 ## [1.0.4](https://github.com/stordco/logger_json/compare/v1.0.3...v1.0.4) (2023-10-04)
 
 

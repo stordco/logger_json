@@ -101,11 +101,11 @@ if Code.ensure_loaded?(Plug) do
     Extracts the public part from the authorization header and returns it as the scrubbed value for additional observability.
 
     ## Notes:
-    - Secret key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
+    - Secret/App key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
     - This is internally referred to as the `secret_key_header`, but calling it a public_key for name recognition and to be less scary.
     """
     def extract_public_key(value, default_value) do
-      case Regex.named_captures(~r/Bearer stord_sk_(?<public_key>[A-Za-z0-9+\/]+)_.+/, value) do
+      case Regex.named_captures(~r/Bearer stord_(sk|ak)_(?<public_key>[A-Za-z0-9+\/]+)_.+/, value) do
         %{"public_key" => public_key} -> public_key
         _ -> default_value
       end

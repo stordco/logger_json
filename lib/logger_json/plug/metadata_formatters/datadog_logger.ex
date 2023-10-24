@@ -18,7 +18,8 @@ if Code.ensure_loaded?(Plug) do
       "passwd",
       "password",
       "secret",
-      "x-cloud-signature"
+      "x-cloud-signature",
+      "x-authorization"
     ]
     @scrubbed_value "*********"
 

@@ -90,6 +90,62 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
              } = Jason.decode!(log)
     end
 
+    test "scrubs a cloud-service authorization header with secret key, extracts the secret_key_header and returns it as the scrub value" do
+      secret_key = "somesecretkeyvaluel0l"
+      secret_key_header = "S9qb802LOup/zg3cd4m+CDsR"
+      key_type = "stord_sk"
+
+      conn =
+        :post
+        |> conn("/hello/world", [])
+        |> put_req_header("authorization", "Bearer #{key_type}_#{secret_key_header}_#{secret_key}")
+
+      log =
+        capture_io(:standard_error, fn ->
+          MyPlug.call(conn, [])
+          Logger.flush()
+          Process.sleep(10)
+        end)
+
+      expected_scrubbed_value = "#{key_type}_#{secret_key_header}_*********"
+
+      assert %{
+               "http" => %{
+                 "request_headers" => %{
+                   "authorization" => ^expected_scrubbed_value
+                 }
+               }
+             } = Jason.decode!(log)
+    end
+
+    test "scrubs a cloud-service authorization header with app key, extracts the secret_key_header and returns it as the scrub value" do
+      secret_key = "somesecretkeyvaluel0l"
+      secret_key_header = "S9qb802LOup/zg3cd4m+CDsR"
+      key_type = "stord_ak"
+
+      conn =
+        :post
+        |> conn("/hello/world", [])
+        |> put_req_header("authorization", "Bearer #{key_type}_#{secret_key_header}_#{secret_key}")
+
+      log =
+        capture_io(:standard_error, fn ->
+          MyPlug.call(conn, [])
+          Logger.flush()
+          Process.sleep(10)
+        end)
+
+      expected_scrubbed_value = "#{key_type}_#{secret_key_header}_*********"
+
+      assert %{
+               "http" => %{
+                 "request_headers" => %{
+                   "authorization" => ^expected_scrubbed_value
+                 }
+               }
+             } = Jason.decode!(log)
+    end
+
     test "logs request body" do
       conn =
         :post
@@ -184,6 +240,10 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
       def reverse(value) do
         String.reverse(value)
       end
+
+      def secret_key_processor(value) do
+        String.slice(value, -4..-1)
+      end
     end
 
     setup do
@@ -258,6 +318,34 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
                  "request_headers" => %{
                    "some-unicorn-key-super-special-lul" => "$$$$",
                    "use-a-callback" => ^expected_callback_result
+                 }
+               }
+             } = Jason.decode!(log)
+    end
+
+    test "allows for overriding the special case impl. of the authorization header" do
+      override_application_env(:logger_json, :scrub_overrides, %{
+        "authorization" => {ScrubHelpers, :secret_key_processor, []}
+      })
+
+      last4 = "el0l"
+
+      conn =
+        :post
+        |> conn("/hello/world", [])
+        |> put_req_header("authorization", "Bearer stord_sk_1234567890_somesecretkeyvalu#{last4}")
+
+      log =
+        capture_io(:standard_error, fn ->
+          MyPlug.call(conn, [])
+          Logger.flush()
+          Process.sleep(10)
+        end)
+
+      assert %{
+               "http" => %{
+                 "request_headers" => %{
+                   "authorization" => ^last4
                  }
                }
              } = Jason.decode!(log)

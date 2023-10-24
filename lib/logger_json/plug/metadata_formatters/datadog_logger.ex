@@ -88,9 +88,26 @@ if Code.ensure_loaded?(Plug) do
     defp default_scrub_value, do: Application.get_env(:logger_json, :scrubbed_value, @scrubbed_value)
 
     defp scrub_map(overrides) do
-      Enum.reduce(@scrubbed_keys, overrides, fn key, acc ->
-        Map.put_new(acc, key, default_scrub_value())
-      end)
+      default_value = default_scrub_value()
+
+      @scrubbed_keys
+      |> Enum.into(%{}, fn key -> {key, default_value} end)
+      |> Map.put("authorization", {__MODULE__, :extract_public_key, [default_value]})
+      |> Map.merge(overrides)
+    end
+
+    @doc """
+    Extracts the public part from the authorization header and returns it as the scrubbed value for additional observability.
+
+    ## Notes:
+    - Secret key headers are Base64 encoded and divisible by 3 and will never contain the padding (=) character.
+    - This is internally referred to as the `secret_key_header`, but calling it a public_key for name recognition and to be less scary.
+    """
+    def extract_public_key(value, default_value) do
+      case Regex.named_captures(~r/Bearer stord_sk_(?<public_key>[A-Za-z0-9+\/]+)_.+/, value) do
+        %{"public_key" => public_key} -> public_key
+        _ -> default_value
+      end
     end
 
     defp scrubbed_value(key, actual_value, scrub_map) do
@@ -106,6 +123,13 @@ if Code.ensure_loaded?(Plug) do
       end
     end
 
+    defp apply_scrubbing(key, value, scrub_map) do
+      case scrubbed_value(key, value, scrub_map) do
+        {:replace, new_value} -> new_value
+        {:keep, _} -> recursive_scrub(value, scrub_map)
+      end
+    end
+
     defp recursive_scrub(%{__struct__: Plug.Conn.Unfetched}, _scrub_map), do: "%Plug.Conn.Unfetched{}"
 
     defp recursive_scrub([head | _tail] = data, scrub_map) when is_tuple(head),
@@ -114,21 +138,11 @@ if Code.ensure_loaded?(Plug) do
     defp recursive_scrub(data, scrub_map) when is_list(data),
       do: Enum.map(data, &recursive_scrub(&1, scrub_map))
 
-    defp recursive_scrub(data, scrub_map) when is_map(data) do
-      Map.new(data, fn {k, v} ->
-        case scrubbed_value(k, v, scrub_map) do
-          {:replace, new_value} -> {k, new_value}
-          {:keep, _} -> {k, recursive_scrub(v, scrub_map)}
-        end
-      end)
-    end
+    defp recursive_scrub(data, scrub_map) when is_map(data),
+      do: Map.new(data, fn {k, v} -> {k, apply_scrubbing(k, v, scrub_map)} end)
 
-    defp recursive_scrub({k, v}, scrub_map) do
-      case scrubbed_value(k, v, scrub_map) do
-        {:replace, new_value} -> {k, new_value}
-        {:keep, _} -> {k, recursive_scrub(v, scrub_map)}
-      end
-    end
+    defp recursive_scrub({k, v}, scrub_map),
+      do: {k, apply_scrubbing(k, v, scrub_map)}
 
     defp recursive_scrub(data, _), do: data
   end

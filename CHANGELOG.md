@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/stordco/logger_json/compare/v1.1.0...v1.1.1) (2023-11-19)
+
+
+### Bug Fixes
+
+* Scrub x-api-key ([#14](https://github.com/stordco/logger_json/issues/14)) ([36349bf](https://github.com/stordco/logger_json/commit/36349bf8325f5ab46380772c9ce348b679a023aa))
+
 ## [1.1.0](https://github.com/stordco/logger_json/compare/v1.0.4...v1.1.0) (2023-10-24)
 
 

@@ -121,7 +121,7 @@ if Code.ensure_loaded?(Plug) do
       end
     end
 
-    def extract_public_key(value, scrub_value), do: scrub_value
+    def extract_public_key(_value, scrub_value), do: scrub_value
 
     defp scrubbed_value(key, actual_value, scrub_map) do
       case Map.get(scrub_map, key) do

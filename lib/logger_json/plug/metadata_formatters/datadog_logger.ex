@@ -108,7 +108,7 @@ if Code.ensure_loaded?(Plug) do
     - The expected outcome would be something like "stord_sk_publickeyasdfasdf_*******", assuming "*******" is the scrub value.
     - You can use DataDog's regex to extract the public key part and turn it into a standard attribute.
     """
-    def extract_public_key(value, scrub_value) do
+    def extract_public_key(value, scrub_value) when is_binary(value) do
       case Regex.named_captures(
              ~r/Bearer stord_(?<type>sk|ak)_(?<public_key>[A-Za-z0-9+\/]+)_(?<secret_key>.+)/,
              value
@@ -120,6 +120,8 @@ if Code.ensure_loaded?(Plug) do
           scrub_value
       end
     end
+
+    def extract_public_key(value, scrub_value), do: scrub_value
 
     defp scrubbed_value(key, actual_value, scrub_map) do
       case Map.get(scrub_map, key) do

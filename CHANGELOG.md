@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/stordco/logger_json/compare/v1.1.1...v1.1.2) (2024-01-31)
+
+
+### Bug Fixes
+
+* Only regex a string ([#16](https://github.com/stordco/logger_json/issues/16)) ([b13b235](https://github.com/stordco/logger_json/commit/b13b235d1ad8d241b7c0772659e50ab49c57baf4))
+
 ## [1.1.1](https://github.com/stordco/logger_json/compare/v1.1.0...v1.1.1) (2023-11-19)
 
 

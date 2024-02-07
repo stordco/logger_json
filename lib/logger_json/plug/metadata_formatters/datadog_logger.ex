@@ -144,6 +144,7 @@ if Code.ensure_loaded?(Plug) do
     end
 
     defp recursive_scrub(%{__struct__: Plug.Conn.Unfetched}, _scrub_map), do: "%Plug.Conn.Unfetched{}"
+    defp recursive_scrub(%Plug.Upload{}, _scrub_map), do: "%Plug.Upload{}"
 
     defp recursive_scrub([head | _tail] = data, scrub_map) when is_tuple(head),
       do: data |> Enum.map(&recursive_scrub(&1, scrub_map)) |> Map.new()

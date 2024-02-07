@@ -195,6 +195,30 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
                }
              } = Jason.decode!(log)
     end
+
+    test "doesn't blow up during uploads" do
+      conn =
+        :post
+        |> conn("/upload", %Plug.Upload{
+          content_type: "text/csv",
+          filename: "example.csv",
+          path: "/tmp/plug-1707-lAW6/multipart-1707338489-738149684841-4"
+        })
+        |> put_req_header("content-type", "multipart/form-data")
+
+      log =
+        capture_io(:standard_error, fn ->
+          MyPlug.call(conn, [])
+          Logger.flush()
+          Process.sleep(10)
+        end)
+
+      assert %{
+               "http" => %{
+                 "request_params" => "%Plug.Upload{}"
+               }
+             } = Jason.decode!(log)
+    end
   end
 
   describe "configuration: :scrubbed_value" do

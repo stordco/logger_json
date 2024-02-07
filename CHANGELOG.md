@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/stordco/logger_json/compare/v1.1.2...v1.1.3) (2024-02-07)
+
+
+### Bug Fixes
+
+* Don't scrub uploads ([#18](https://github.com/stordco/logger_json/issues/18)) ([1ebfaa4](https://github.com/stordco/logger_json/commit/1ebfaa441632e2f10a03766bf4996e82b3531664))
+
 ## [1.1.2](https://github.com/stordco/logger_json/compare/v1.1.1...v1.1.2) (2024-01-31)
 
 

@@ -23,7 +23,7 @@
         # You can give explicit globs or simply directories.
         # In the latter case `**/*.{ex,exs}` will be used.
         #
-        included: ["lib/", "priv/", "test/"],
+        included: ["config/", "lib/", "priv/", "test/"],
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       #
@@ -81,7 +81,7 @@
         # You can customize the priority of any check
         # Priority values are: `low, normal, high, higher`
         #
-        {Credo.Check.Design.AliasUsage, [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 2]},
+        {Credo.Check.Design.AliasUsage, [priority: :low, if_nested_deeper_than: 4, if_called_more_often_than: 2]},
         {Credo.Check.Design.DuplicatedCode, false},
         # You can also customize the exit_status of each check.
         # If you don't want TODO comments to cause `mix credo` to fail, just
@@ -119,7 +119,8 @@
          [
            order:
              ~w(moduledoc behaviour use import require alias module_attribute defstruct callback macrocallback optional_callback)a,
-           ignore: [:type]
+           ignore: [:type],
+           ignore_module_attributes: [:contract, :decorate, :operation, :trace]
          ]},
         {Credo.Check.Readability.StringSigils, []},
         {Credo.Check.Readability.TrailingBlankLine, []},
@@ -177,7 +178,17 @@
         {Credo.Check.Warning.UnusedPathOperation, []},
         {Credo.Check.Warning.UnusedRegexOperation, []},
         {Credo.Check.Warning.UnusedStringOperation, []},
-        {Credo.Check.Warning.UnusedTupleOperation, []}
+        {Credo.Check.Warning.UnusedTupleOperation, []},
+
+        #
+        ## Custom
+        #
+        {Credo.Check.Warning.ForbiddenModule,
+         [
+           modules: [
+             {Oban.Worker, "use Oban.Pro.Worker instead"}
+           ]
+         ]}
       ]
     }
   ]

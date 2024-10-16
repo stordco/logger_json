@@ -17,7 +17,24 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
     plug(:return)
 
     defp return(conn, _opts) do
-      send_resp(conn, 200, "Hello world")
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{errors: [%{"message" => "Bad Request"}]}))
+    end
+  end
+
+  defmodule ErrorPlug do
+    use Plug.Builder
+
+    plug(Plug.Parsers, parsers: [:urlencoded, :json], json_decoder: Jason)
+    plug(LoggerJSON.Plug, metadata_formatter: LoggerJSON.Plug.MetadataFormatters.DatadogLogger)
+
+    plug(:return)
+
+    defp return(conn, _opts) do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(400, Jason.encode!(%{errors: [%{"message" => "Bad Request"}]}))
     end
   end
 
@@ -216,6 +233,33 @@ defmodule LoggerJSON.Plug.MetadataFormatters.DatadogLoggerTest do
       assert %{
                "http" => %{
                  "request_params" => "%Plug.Upload{}"
+               }
+             } = Jason.decode!(log)
+    end
+  end
+
+  describe "response body logging" do
+    test "logs response body when status is >= 400" do
+      conn =
+        :post
+        |> conn("/hello/world", Jason.encode!(%{hello: :world}))
+        |> put_req_header("content-type", "application/json")
+
+      log =
+        capture_io(:standard_error, fn ->
+          ErrorPlug.call(conn, [])
+          Logger.flush()
+          Process.sleep(10)
+        end)
+
+      assert %{
+               "http" => %{
+                 "request_headers" => %{"content-type" => "application/json"},
+                 "response_body" => %{"errors" => [%{"message" => "Bad Request"}]},
+                 "response_headers" => %{
+                   "cache-control" => "max-age=0, private, must-revalidate",
+                   "content-type" => "application/json; charset=utf-8"
+                 }
                }
              } = Jason.decode!(log)
     end

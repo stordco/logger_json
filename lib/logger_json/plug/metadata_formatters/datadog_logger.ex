@@ -28,29 +28,32 @@ if Code.ensure_loaded?(Plug) do
     def build_metadata(conn, latency, client_version_header) do
       scrub_map = scrub_map(scrub_overrides())
 
+      http_data = [
+        url: request_url(conn),
+        status_code: conn.status,
+        method: conn.method,
+        referer: LoggerJSON.PlugUtils.get_header(conn, "referer"),
+        request_id: Keyword.get(Logger.metadata(), :request_id),
+        request_headers: recursive_scrub(conn.req_headers, scrub_map),
+        request_params: recursive_scrub(conn.params, scrub_map),
+        useragent: LoggerJSON.PlugUtils.get_header(conn, "user-agent"),
+        url_details:
+          json_map(
+            host: conn.host,
+            port: conn.port,
+            path: conn.request_path,
+            queryString: conn.query_string,
+            scheme: conn.scheme
+          )
+      ]
+
+      http_data = maybe_add_response_data(http_data, conn, scrub_map)
+
       client_metadata(conn, client_version_header) ++
         phoenix_metadata(conn) ++
         [
           duration: native_to_nanoseconds(latency),
-          http:
-            json_map(
-              url: request_url(conn),
-              status_code: conn.status,
-              method: conn.method,
-              referer: LoggerJSON.PlugUtils.get_header(conn, "referer"),
-              request_id: Keyword.get(Logger.metadata(), :request_id),
-              request_headers: recursive_scrub(conn.req_headers, scrub_map),
-              request_params: recursive_scrub(conn.params, scrub_map),
-              useragent: LoggerJSON.PlugUtils.get_header(conn, "user-agent"),
-              url_details:
-                json_map(
-                  host: conn.host,
-                  port: conn.port,
-                  path: conn.request_path,
-                  queryString: conn.query_string,
-                  scheme: conn.scheme
-                )
-            ),
+          http: http_data,
           network: json_map(client: json_map(ip: LoggerJSON.PlugUtils.remote_ip(conn)))
         ]
     end
@@ -88,6 +91,7 @@ if Code.ensure_loaded?(Plug) do
 
     defp scrub_overrides, do: Application.get_env(:logger_json, :scrub_overrides, %{})
     defp default_scrub_value, do: Application.get_env(:logger_json, :scrubbed_value, @scrubbed_value)
+    defp response_log_on_errors?, do: Application.get_env(:logger_json, :response_log_on_errors?, true)
 
     defp scrub_map(overrides) do
       default_value = default_scrub_value()
@@ -159,5 +163,37 @@ if Code.ensure_loaded?(Plug) do
       do: {k, apply_scrubbing(k, v, scrub_map)}
 
     defp recursive_scrub(data, _), do: data
+
+    defp maybe_add_response_data(http_data, conn, scrub_map) do
+      if conn.status >= 400 && response_log_on_errors?() do
+        content_type = get_content_type(conn)
+        response_body = decode_response_body(conn.resp_body, content_type)
+
+        http_data ++
+          [
+            response_headers: recursive_scrub(conn.resp_headers, scrub_map),
+            response_body: recursive_scrub(response_body, scrub_map)
+          ]
+      else
+        http_data
+      end
+    end
+
+    defp get_content_type(conn) do
+      conn
+      |> Plug.Conn.get_resp_header("content-type")
+      |> List.first()
+    end
+
+    defp decode_response_body(body, content_type) do
+      if Regex.match?(~r/application\/(vnd\.api\+)?json/, String.downcase(content_type || "")) do
+        case Jason.decode(body) do
+          {:ok, decoded} -> decoded
+          _ -> body
+        end
+      else
+        body
+      end
+    end
   end
 end

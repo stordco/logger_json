@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/stordco/logger_json/compare/v1.1.3...v1.2.0) (2024-10-16)
+
+
+### Features
+
+* Support response body/headers logging on errors ([#20](https://github.com/stordco/logger_json/issues/20)) ([06095c9](https://github.com/stordco/logger_json/commit/06095c90c0c44a83557cfbb6276cd6a74b7ee45c))
+
 ## [1.1.3](https://github.com/stordco/logger_json/compare/v1.1.2...v1.1.3) (2024-02-07)
 
 
